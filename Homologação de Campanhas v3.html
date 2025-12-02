@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checklist de Homologação</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- ESTILOS GERAIS (Baseado no seu arquivo) --- */
+        :root {
+            --bg-color: #f4f7f9;
+            --surface-color: #ffffff;
+            --primary-color: #005f73;
+            --secondary-color: #d62828;
+            --font-color: #0d1b2a;
+            --accent-color: #0077b6;
+            --success-color: #2a9d8f;
+            --pending-color: #f77f00;
+            --na-color: #6c757d;
+            --border-color: #dee2e6;
+            --border-radius: 8px;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--font-color);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 0 1rem;
+        }
+
+        h1,
+        h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        button {
+            display: inline-block;
+            background: var(--accent-color);
+            color: #fff;
+            padding: 12px 25px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover,
+        button:focus {
+            transform: translateY(-2px);
+            background: #0096c7;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            outline: none;
+        }
+
+        #generate-pdf-btn {
+            background: var(--secondary-color);
+        }
+
+        #generate-pdf-btn:hover,
+        #generate-pdf-btn:focus {
+            background: #e04a4a;
+        }
+
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 1rem;
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            color: var(--font-color);
+            font-size: 16px;
+        }
+
+        #setup-screen {
+            background-color: var(--surface-color);
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        #checklist-screen {
+            display: none;
+        }
+
+        #header-info {
+            background-color: var(--surface-color);
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+        }
+
+        /* --- ESTILOS DA MELHORIA (Categorias) --- */
+        .category-group {
+            margin-bottom: 1.5rem;
+            background-color: var(--surface-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .category-header {
+            background-color: #f8f9fa;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--primary-color);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-header:hover {
+            background-color: #f1f3f5;
+        }
+
+        .category-header::after {
+            content: '▼';
+            font-size: 0.8rem;
+            transition: transform 0.2s ease;
+        }
+
+        .category-header.active::after {
+            transform: rotate(180deg);
+        }
+
+        .category-content {
+            display: none;
+            /* Começa fechado */
+            padding: 0;
+        }
+
+        /* --- ESTILOS DOS ITENS (Ajustados) --- */
+        .checklist-item {
+            margin-bottom: 0;
+            padding: 1.2rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .category-content .checklist-item:first-child {
+            border-top: none;
+        }
+
+        .checklist-item.status-ok {
+            background-color: #f0fdf4;
+        }
+
+        .checklist-item.status-pendente {
+            background-color: #fffbeb;
+        }
+
+        .checklist-item.status-na {
+            background-color: #f8f9fa;
+        }
+
+        .item-description {
+            display: block;
+            margin-bottom: 1rem;
+            font-weight: 400;
+            font-size: 15px;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .status-selector {
+            display: flex;
+            gap: 10px;
+            margin-right: auto;
+        }
+
+        .status-selector label {
+            cursor: pointer;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid var(--border-color);
+            background-color: var(--surface-color);
+        }
+
+        .status-selector input[type="radio"] {
+            display: none;
+        }
+
+        .status-selector input[type="radio"]:checked+label.ok {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        .status-selector input[type="radio"]:checked+label.pendente {
+            background-color: var(--pending-color);
+            color: white;
+            border-color: var(--pending-color);
+        }
+
+        .status-selector input[type="radio"]:checked+label.na {
+            background-color: var(--na-color);
+            color: white;
+            border-color: var(--na-color);
+        }
+
+        .obs-btn {
+            background: none;
+            border: 1px solid var(--accent-color);
+            color: var(--accent-color);
+            padding: 5px 10px;
+            font-size: 13px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .obs-btn:hover {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .observation-field {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .observation-field textarea {
+            width: 100%;
+            min-height: 80px;
+            background-color: #fdfdfd;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            color: var(--font-color);
+            padding: 10px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        /* --- ESTILOS DO LOADER (Original) --- */
+        .loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loader-content {
+            text-align: center;
+            background-color: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid var(--accent-color);
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, updateDoc, doc, getDocs, getDoc, query, orderBy, limit, onSnapshot, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBKTdk0cOA_Qj2SbDw3ZRgQ4Rfkl8HL2AA",
+            authDomain: "homologacaodecatalogos.firebaseapp.com",
+            projectId: "homologacaodecatalogos",
+            storageBucket: "homologacaodecatalogos.firebasestorage.app",
+            messagingSenderId: "669256907388",
+            appId: "1:669256907388:web:977616ce46cf19663fa7f9",
+            measurementId: "G-VJDN405NJZ"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Make available globally
+        window.firebaseDB = db;
+        window.firebaseCollection = collection;
+        window.firebaseAddDoc = addDoc;
+        window.firebaseUpdateDoc = updateDoc;
+        window.firebaseDoc = doc;
+        window.firebaseGetDocs = getDocs;
+        window.firebaseGetDoc = getDoc;
+        window.firebaseQuery = query;
+        window.firebaseOrderBy = orderBy;
+        window.firebaseLimit = limit;
+        window.firebaseOnSnapshot = onSnapshot;
+        window.firebaseSetDoc = setDoc;
+    </script>
+</head>
+
+<body>
+    <div class="container">
+
+        <div id="setup-screen">
+            <h1>Checklist de Homologação</h1>
+            <p style="margin-bottom: 2rem; opacity: 0.8;">Preencha os dados abaixo para iniciar a verificação.</p>
+            <input type="text" id="campaign-name" placeholder="Nome da Campanha" required>
+            <input type="date" id="homologation-date" required>
+            <button id="start-btn">Iniciar Checklist</button>
+            <div id="previous-homologations" style="margin-top: 2rem; display: none;">
+                <h3 style="margin-bottom: 1rem; color: var(--primary-color);">Homologações Anteriores</h3>
+                <div id="homologations-list" style="max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        </div>
+
+        <div id="checklist-screen">
+            <div id="header-info">
+                <h2 id="display-campaign-name"></h2>
+                <p id="display-homologation-date"></p>
+            </div>
+
+            <div id="checklist-container"></div>
+
+            <div style="text-align: center; margin-top: 2rem;">
+                <button id="generate-pdf-btn">Gerar Resumo em PDF</button>
+                <button id="save-btn" style="background: var(--success-color); margin-left: 1rem;">Salvar
+                    Progresso</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loader" class="loader">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p>Gerando PDF, por favor aguarde...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // =================================================================
+            // FIREBASE: VARIÁVEIS E FUNÇÕES DE PERSISTÊNCIA
+            // =================================================================
+            let currentHomologationId = null;
+            let saveTimeout = null;
+
+            // Função para salvar checklist no Firestore
+            async function saveChecklistToFirebase() {
+                if (!currentHomologationId) return;
+
+                const campaignName = document.getElementById('campaign-name').value;
+                const homologationDate = document.getElementById('homologation-date').value;
+                const items = document.querySelectorAll('.checklist-item');
+
+                const checklistData = [];
+                items.forEach((item, index) => {
+                    const statusInput = item.querySelector(`input[name="status-${index}"]:checked`);
+                    const observation = item.querySelector('textarea').value;
+                    const category = item.dataset.category;
+                    const description = item.querySelector('.item-description').textContent;
+
+                    checklistData.push({
+                        index,
+                        category,
+                        description,
+                        status: statusInput ? statusInput.value : null,
+                        observation
+                    });
+                });
+
+                try {
+                    const docRef = window.firebaseDoc(window.firebaseDB, 'homologations', currentHomologationId);
+                    await window.firebaseSetDoc(docRef, {
+                        campaignName,
+                        homologationDate,
+                        items: checklistData,
+                        lastUpdated: new Date().toISOString()
+                    });
+                    console.log('Checklist salvo com sucesso!');
+                } catch (error) {
+                    console.error('Erro ao salvar checklist:', error);
+                }
+            }
+
+            // Função para salvar com debounce (aguarda 2 segundos após última mudança)
+            function scheduleSave() {
+                if (saveTimeout) clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveChecklistToFirebase();
+                }, 2000);
+            }
+
+            // Função para carregar checklist do Firestore
+            async function loadChecklistFromFirebase(homologationId) {
+                try {
+                    const docRef = window.firebaseDoc(window.firebaseDB, 'homologations', homologationId);
+                    const docSnap = await window.firebaseGetDoc(docRef);
+
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+
+                        // Preenche os campos
+                        document.getElementById('campaign-name').value = data.campaignName;
+                        document.getElementById('homologation-date').value = data.homologationDate;
+
+                        // Inicia o checklist
+                        setupScreen.style.display = 'none';
+                        checklistScreen.style.display = 'block';
+
+                        // Preenche o cabeçalho
+                        document.getElementById('display-campaign-name').textContent = `Campanha: ${data.campaignName}`;
+                        const date = new Date(data.homologationDate);
+                        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                        const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+                        const formattedDate = adjustedDate.toLocaleDateString('pt-BR');
+                        document.getElementById('display-homologation-date').textContent = `Data de Homologação: ${formattedDate}`;
+
+                        // Renderiza o checklist
+                        renderChecklist();
+
+                        // Aguarda um pouco para garantir que os elementos foram criados
+                        setTimeout(() => {
+                            // Restaura os dados
+                            data.items.forEach(itemData => {
+                                const item = document.querySelector(`[data-item-id="${itemData.index}"]`);
+                                if (item) {
+                                    // Restaura status
+                                    if (itemData.status) {
+                                        const statusInput = item.querySelector(`input[value="${itemData.status}"]`);
+                                        if (statusInput) {
+                                            statusInput.checked = true;
+                                            // Aplica a classe de cor
+                                            item.classList.remove('status-ok', 'status-pendente', 'status-na');
+                                            if (itemData.status === 'Ok') item.classList.add('status-ok');
+                                            if (itemData.status === 'Pendente') item.classList.add('status-pendente');
+                                            if (itemData.status === 'Não Aplicável') item.classList.add('status-na');
+                                        }
+                                    }
+
+                                    // Restaura observação
+                                    if (itemData.observation) {
+                                        const textarea = item.querySelector('textarea');
+                                        if (textarea) {
+                                            textarea.value = itemData.observation;
+                                            const obsField = item.querySelector('.observation-field');
+                                            if (obsField) obsField.style.display = 'block';
+                                        }
+                                    }
+                                }
+                            });
+                        }, 100);
+
+                        currentHomologationId = homologationId;
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar checklist:', error);
+                }
+            }
+
+            // Função para listar homologações anteriores
+            async function loadPreviousHomologations() {
+                try {
+                    const q = window.firebaseQuery(
+                        window.firebaseCollection(window.firebaseDB, 'homologations'),
+                        window.firebaseOrderBy('lastUpdated', 'desc'),
+                        window.firebaseLimit(10)
+                    );
+
+                    const querySnapshot = await window.firebaseGetDocs(q);
+                    const homologationsList = document.getElementById('homologations-list');
+                    homologationsList.innerHTML = '';
+
+                    if (querySnapshot.empty) {
+                        document.getElementById('previous-homologations').style.display = 'none';
+                        return;
+                    }
+
+                    document.getElementById('previous-homologations').style.display = 'block';
+
+                    querySnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        const div = document.createElement('div');
+                        div.style.cssText = 'padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-radius: 6px; cursor: pointer; transition: all 0.2s;';
+                        div.innerHTML = `
+                            <strong>${data.campaignName}</strong><br>
+                            <small style="color: #666;">Data: ${new Date(data.homologationDate).toLocaleDateString('pt-BR')} | Última atualização: ${new Date(data.lastUpdated).toLocaleString('pt-BR')}</small>
+                        `;
+                        div.addEventListener('mouseenter', () => {
+                            div.style.background = '#e9ecef';
+                        });
+                        div.addEventListener('mouseleave', () => {
+                            div.style.background = '#f8f9fa';
+                        });
+                        div.addEventListener('click', () => {
+                            loadChecklistFromFirebase(doc.id);
+                        });
+                        homologationsList.appendChild(div);
+                    });
+                } catch (error) {
+                    console.error('Erro ao carregar homologações anteriores:', error);
+                }
+            }
+
+            // Carrega homologações anteriores ao iniciar
+            setTimeout(() => {
+                if (window.firebaseDB) {
+                    loadPreviousHomologations();
+                }
+            }, 1000);
+
+            // =================================================================
+            // PASSO 1: OS DADOS CORRETOS (AGORA SIM, CORRIGIDO!)
+            // =================================================================
+            const checklistData = [
+                { "category": "Pré-homologação", "item": "Criar usuário teste." },
+                { "category": "Pré-homologação", "item": "Colocar expiração de pontos na origem teste (sete dias)." },
+                { "category": "Chamados", "item": "Abrir Chamado para Acesso Admin (Cliente)." },
+                { "category": "Chamados", "item": "Abrir Chamado para Acesso Zendesk (Cliente)." },
+                { "category": "Chamados", "item": "Abrir Chamado para Configurar Shell." },
+                { "category": "Chamados", "item": "Abrir Chamado para Configurar Sonar." },
+                { "category": "Conta-corrente", "item": "Verificar parâmetros de configuração." },
+                { "category": "Conta-corrente", "item": "Verificar se \"flag\" está ativo (pedidos passando pelo Sonar)." },
+                { "category": "Cadastro", "item": "Cadastrar participante com as informações minimas necessárias (pode variar conforme campanha)." },
+                { "category": "Cadastro", "item": "Cadastrar campos Complemento, Bairro e Ponto de Referência com mais de 20 caracteres." },
+                { "category": "Cadastro", "item": "Cadastrar campos com caracteres especiais e confirmar a remoção dos caracteres especiais." },
+                { "category": "Cadastro", "item": "Cadastrar número do endereço só com números." },
+                { "category": "Cadastro", "item": "Cadastrar número do endereço só com letras e símbolos e ver se o sistema registra como S/N." },
+                { "category": "Cadastro", "item": "Cadastrar número do endereço com letras e símbolos, sistema registra como S/N e salva só números." },
+                { "category": "Cadastro", "item": "Realizar pré-cadastro de usuário e verificar atualização do cadastro após completar o processo de cadastro." },
+                { "category": "Cadastro", "item": "Confirmar se todos os campos que deveriam estar bloqueados para edição do participante estão bloqueados." },
+                { "category": "Cadastro", "item": "Realizar update dos campos de cadastro via plataforma/hotsite e verifica a atualização dos dados no Marketplace." },
+                { "category": "2FA", "item": "Concluir processo de validação do 2FA para pessoa física." },
+                { "category": "2FA", "item": "Concluir processo de validação do 2FA para pessoa jurídica." },
+                { "category": "2FA", "item": "Validar layout de header e footer das telas de 2FA." },
+                { "category": "2FA", "item": "Verificar se links de Termos de Uso e Política de Privacidade estão exluídos do layout." },
+                { "category": "Resgate", "item": "Realizar resgate de produto com participante só pontos." },
+                { "category": "Resgate", "item": "Acompanhar de ponta a ponta o tracking/email transacional." },
+                { "category": "Resgate", "item": "Solicitar estorno dos pontos." },
+                { "category": "Resgate", "item": "Realizar resgate de produto com participante usando complemento de cartão (valor mínimo)." },
+                { "category": "Resgate", "item": "Solicitar estorno dos pontos e do complemento (crédito)." },
+                { "category": "Resgate", "item": "Confirmar as origens dos pontos e do complemento (crédito)." },
+                { "category": "Resgate", "item": "Simular (sem finalizar) um resgate de recarga de celular em todas as operadoras (Vivo, Tim, Claro, Oi)." },
+                { "category": "Resgate", "item": "Simular (sem finalizar) um resgate de Pague Contas em pelo menos 1 opção." },
+                { "category": "Resgate", "item": "Verficar Termos do Pague contas." },
+                { "category": "Resgate", "item": "Realizar resgate de ShellBox (somente CPF)." },
+                { "category": "Resgate", "item": "Verificar se o resgate aparece no admin." },
+                { "category": "Resgate", "item": "Realizar débito dos pontos no usuário teste." },
+                { "category": "Resgate", "item": "Voucher Virtual." },
+                { "category": "Resgate", "item": "Verificar markups de: Produtos: 5% Pague Conta: 10% ShellBox: 15% Recarca de celular: 7% Voucher Virtual: 7%" },
+                { "category": "Resgate", "item": "Validação Loja" },
+                { "category": "Like +", "item": "Realizar uma transação de solicitação de cartão" },
+                { "category": "Like +", "item": "Verificar o valor do cartão (plástico)" },
+                { "category": "Like +", "item": "Realizar uma transação de recarga de carga" },
+                { "category": "Like +", "item": "Verificar a taxa aplicada na transação de recarga (markup)" },
+                { "category": "Like +", "item": "Verificar valor de frete aplicado" },
+                { "category": "Like +", "item": "Verificar textos e documentos com as regras" },
+                { "category": "Like +", "item": "Verificar o layout da tela" },
+                { "category": "Transferência bancária", "item": "Confirmar o valor da taxa da transferência bancária" },
+                { "category": "Transferência bancária", "item": "Confirmar os limites da transferência bancária" },
+                { "category": "Transferência bancária", "item": "Verificar textos e documentos com as regras" },
+                { "category": "Transferência bancária", "item": "Verificar o layout da tela" },
+                { "category": "Transferência bancária", "item": "Realizar uma transferência com sucesso" },
+                { "category": "FAQ", "item": "Validar se todos os itens da FAQ estão corretos" },
+                { "category": "Banner", "item": "Confirmar se banners BAU estão ativados" },
+                { "category": "Banner", "item": "Verificar se os banners ativados estão corretos conforme regra da campanha" },
+                { "category": "Banner", "item": "Validar se banners de serviços estão corretamente ativados e direcionando para a página correta" },
+                { "category": "Vitrines", "item": "Confirmar se vitrines BAU estão ativados" },
+                { "category": "Vitrines", "item": "Verificar se vitrines BAU ativadas estão corretas conforme regra da campanha (Vitrine \"Produtos mais resgatados\", Vitrine \"Produtos que vc também possa se interessar\", Vitrine \"Voucher\", Vitrine \"Produtos para você\")" },
+                { "category": "Parceiros", "item": "Confirmar se todos os vouchers virtuais apresentados no catálogo estão ativos (exceto Shellbox se houver o serviço)" },
+                { "category": "Parceiros", "item": "Confirmar se todos os vouchers virtuais apresentados no catálogo estão disponíveis" },
+                { "category": "Parceiros", "item": "Confirmar de todas as lojas estão ativadas" },
+                { "category": "Parceiros", "item": "Confirmar se todas as lojas estão disponíveis (no mínimo 5 produtos)" },
+                { "category": "Parceiros", "item": "Retirar parceiros não disponíveis para CNPJ (Fastshop e Shophub)" },
+                { "category": "Parceiros", "item": "Confirmar se ShellBox está com campo CPF ativado, se o participante da campanha for CNPJ" },
+                { "category": "Clarity", "item": "Confirmar a ativação do Clarity (se aplicável)" },
+                { "category": "GA", "item": "Confirmar o tagueamento pelo Google Analytics (se aplicável)" },
+                { "category": "Bloqueios do cliente", "item": "Verificar possibilidade de bloqueio via API Showcase e menus" },
+                { "category": "Admin", "item": "Liberar admin Vertem para N1" },
+                { "category": "Admin", "item": "Liberar admin Vertem para N2" },
+                { "category": "Admin", "item": "Confirmar a configuração da fila (\"colméia)" },
+                { "category": "Admin", "item": "Foi realizada a liberação dos logins (admin cliente)" },
+                { "category": "Extrato", "item": "Extrato - Certifique-se de que o extrato esteja disponível e correto." },
+                { "category": "Extrato", "item": "Verificar se a data de expiração está sendo exibida no extrato" },
+                { "category": "SI", "item": "Confirmar se limites no Sonar estão corretamente cadastrados" },
+                { "category": "SI", "item": "teto de resgate diário da campanha por usuário (R$)" },
+                { "category": "SI", "item": "teto de resgate semanal da campanha por usuário (R$)" },
+                { "category": "SI", "item": "quantidade de pedidos diários em parceiros por usuário (qnt)" },
+                { "category": "SI", "item": "limite de diário recarca por pessoa (R$)" },
+                { "category": "SI", "item": "limite diário em vouchers por pessoa (R$)" },
+                { "category": "SI", "item": "limite diário em transferência por pessoa (R$)" },
+                { "category": "Layout", "item": "Confirmar se favicon está correto (primeiro acesso, catálogo, 2FA)" },
+                { "category": "Layout", "item": "Confirmar se título da página está correto (primeiro acesso, catálogo, 2FA)" },
+                { "category": "Layout", "item": "Validar o skins" },
+                { "category": "Layout", "item": "Verificar a configuração de valores nos filtros (configuração de valores)" },
+                { "category": "Layout", "item": "Verificar se filtro por pontos está funcionando corretamente" },
+                { "category": "Layout", "item": "Confirmar template de email de boas vindas" },
+                { "category": "Layout", "item": "Confirmar template de email de esquecimento de senha" },
+                { "category": "Layout", "item": "Validar se todas as categorias têm produtos" },
+                { "category": "Estrutura", "item": "Verificar se a URL está correta e funcionando." },
+                { "category": "Atendimento", "item": "Confirmar se o chat deveria ou não estar ativado" },
+                { "category": "Atendimento", "item": "Certificar-se de que o chat esteja na central correta." },
+                { "category": "Atendimento", "item": "Verificar se o número da central de atendimento está presente no rodapé da página." },
+                { "category": "Documentos", "item": "Regulamento - Certifique-se de que o regulamento esteja disponível e correto." },
+                { "category": "Documentos", "item": "Termo de Uso - Valide se o termo de uso está presente e correto." },
+                { "category": "Menu suspenso", "item": "Favoritos - Verifique se a funcionalidade de favoritos está funcionando." },
+                { "category": "Menu suspenso", "item": "Verificar se todos os menus estão funcionando" },
+                { "category": "Customizações", "item": "Confirmar se exite algum disclaimer na campanha (ex. profile)" },
+                { "category": "Customizações", "item": "Confirmar se exite blacklist ou whitelist" },
+                { "category": "Customizações", "item": "Confirmar menus horizontais (nomes e disponibilidade)" },
+                { "category": "Customizações", "item": "Confirmar labels botões (ex. \"Editar endereço\" da tela \"Checkout\")" },
+                { "category": "Customizações", "item": "Restrições de Parceiros / Categorias / Itens" },
+                { "category": "Customizações", "item": "Confirmar ativação do disclaimer de Difal" },
+                { "category": "Frete", "item": "Confirmar se as regras de frete estão sendo aplicadas (olhar aba \"Regras de frete\")" }
+            ];
+
+            // =================================================================
+            // PASSO 2: ELEMENTOS DA PÁGINA (Lógica original)
+            // =================================================================
+            const startBtn = document.getElementById('start-btn');
+            const generatePdfBtn = document.getElementById('generate-pdf-btn');
+            const setupScreen = document.getElementById('setup-screen');
+            const checklistScreen = document.getElementById('checklist-screen');
+            const checklistContainer = document.getElementById('checklist-container');
+
+            // Define a data de hoje como padrão
+            document.getElementById('homologation-date').valueAsDate = new Date();
+
+            // =================================================================
+            // PASSO 3: FUNÇÃO PARA INICIAR O CHECKLIST (Lógica original)
+            // =================================================================
+            startBtn.addEventListener('click', async () => {
+                const campaignName = document.getElementById('campaign-name').value;
+                const homologationDate = document.getElementById('homologation-date').value;
+
+                if (!campaignName || !homologationDate) {
+                    alert('Por favor, preencha o nome da campanha e a data.');
+                    return;
+                }
+
+                // Preenche o cabeçalho
+                document.getElementById('display-campaign-name').textContent = `Campanha: ${campaignName}`;
+                const date = new Date(homologationDate);
+                const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+                const formattedDate = adjustedDate.toLocaleDateString('pt-BR');
+                document.getElementById('display-homologation-date').textContent = `Data de Homologação: ${formattedDate}`;
+
+                // Troca de telas
+                setupScreen.style.display = 'none';
+                checklistScreen.style.display = 'block';
+
+                // Chama a nova função de renderização
+                renderChecklist();
+
+                // Cria novo documento no Firebase
+                if (window.firebaseDB) {
+                    try {
+                        const docRef = await window.firebaseAddDoc(
+                            window.firebaseCollection(window.firebaseDB, 'homologations'),
+                            {
+                                campaignName,
+                                homologationDate,
+                                items: [],
+                                lastUpdated: new Date().toISOString()
+                            }
+                        );
+                        currentHomologationId = docRef.id;
+                        console.log('Nova homologação criada:', currentHomologationId);
+                    } catch (error) {
+                        console.error('Erro ao criar homologação:', error);
+                    }
+                }
+            });
+
+            // =================================================================
+            // PASSO 4: FUNÇÃO PARA RENDERIZAR O CHECKLIST (Modificada/Melhorada)
+            // =================================================================
+            function renderChecklist() {
+                // 1. Agrupa os itens por categoria
+                const grouped = checklistData.reduce((acc, current) => {
+                    const category = current.category || "Outros"; // Garante uma categoria
+                    acc[category] = acc[category] || [];
+                    acc[category].push(current.item);
+                    return acc;
+                }, {});
+
+                let itemIndex = 0;
+                let html = "";
+
+                // 2. Cria o HTML para cada categoria
+                for (const category in grouped) {
+                    html += `
+                    <div class="category-group">
+                        <div class="category-header">${category}</div>
+                        <div class="category-content">`;
+
+                    // 3. Cria o HTML para cada item dentro da categoria
+                    grouped[category].forEach(itemText => {
+                        html += `
+                        <div class="checklist-item" data-item-id="${itemIndex}" data-category="${category}">
+                            <span class="item-description">${itemIndex + 1}. ${itemText}</span>
+                            <div class="item-actions">
+                                <div class="status-selector">
+                                    <input type="radio" id="ok-${itemIndex}" name="status-${itemIndex}" value="Ok"><label for="ok-${itemIndex}" class="ok">Ok</label>
+                                    <input type="radio" id="pendente-${itemIndex}" name="status-${itemIndex}" value="Pendente"><label for="pendente-${itemIndex}" class="pendente">Pendente</label>
+                                    <input type="radio" id="na-${itemIndex}" name="status-${itemIndex}" value="Não Aplicável"><label for="na-${itemIndex}" class="na">N/A</label>
+                                </div>
+                                <button class="obs-btn">Observação</button>
+                            </div>
+                            <div class="observation-field"><textarea placeholder="Adicione sua observação aqui..."></textarea></div>
+                        </div>`;
+                        itemIndex++;
+                    });
+
+                    html += `</div></div>`; // Fecha category-content e category-group
+                }
+
+                // 4. Insere o HTML de uma vez no container
+                checklistContainer.innerHTML = html;
+            }
+
+            // =================================================================
+            // PASSO 5: EVENTOS DE CLIQUE NOS ITENS (Lógica original + Acordeão)
+            // =================================================================
+            checklistContainer.addEventListener('click', (e) => {
+                // Evento para abrir/fechar o acordeão
+                if (e.target.classList.contains('category-header')) {
+                    e.target.classList.toggle('active');
+                    const content = e.target.nextElementSibling;
+                    content.style.display = content.style.display === 'block' ? 'none' : 'block';
+                }
+
+                // Evento para o botão "Observação" (original)
+                if (e.target.classList.contains('obs-btn')) {
+                    const obsField = e.target.closest('.checklist-item').querySelector('.observation-field');
+                    obsField.style.display = obsField.style.display === 'block' ? 'none' : 'block';
+                }
+
+                // Evento para colorir o item ao clicar no status (original)
+                if (e.target.tagName === 'LABEL') {
+                    const parentItem = e.target.closest('.checklist-item');
+                    parentItem.classList.remove('status-ok', 'status-pendente', 'status-na');
+                    if (e.target.classList.contains('ok')) parentItem.classList.add('status-ok');
+                    if (e.target.classList.contains('pendente')) parentItem.classList.add('status-pendente');
+                    if (e.target.classList.contains('na')) parentItem.classList.add('status-na');
+                }
+
+                // Salva automaticamente quando houver mudanças
+                if (e.target.tagName === 'LABEL' || e.target.tagName === 'TEXTAREA') {
+                    scheduleSave();
+                }
+            });
+
+            // Botão de salvar manual
+            const saveBtn = document.getElementById('save-btn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', async () => {
+                    saveBtn.textContent = 'Salvando...';
+                    saveBtn.disabled = true;
+                    await saveChecklistToFirebase();
+                    saveBtn.textContent = 'Salvo!';
+                    setTimeout(() => {
+                        saveBtn.textContent = 'Salvar Progresso';
+                        saveBtn.disabled = false;
+                    }, 2000);
+                });
+            }
+
+            // =================================================================
+            // PASSO 6: GERADOR DE PDF (Lógica original, mas com melhoria)
+            // =================================================================
+            generatePdfBtn.addEventListener('click', function () {
+                const loader = document.getElementById('loader');
+                loader.style.display = 'flex';
+
+                setTimeout(() => {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('p', 'pt', 'a4'); // Usando A4 em "points"
+
+                    const campaignName = document.getElementById('campaign-name').value;
+                    const homologationDate = document.getElementById('homologation-date').value;
+
+                    const leftMargin = 40;
+                    const topMargin = 60;
+                    const contentWidth = doc.internal.pageSize.getWidth() - (leftMargin * 2);
+                    const pageHeight = doc.internal.pageSize.getHeight();
+                    let yPosition = topMargin;
+
+                    // Função para adicionar nova página e cabeçalho/rodapé
+                    const addPageHeaders = (pageNum) => {
+                        doc.setFontSize(18);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text("Relatório de Homologação", doc.internal.pageSize.getWidth() / 2, 40, { align: 'center' });
+                    };
+
+                    const addPageFooters = () => {
+                        const pageCount = doc.internal.getNumberOfPages();
+                        for (let i = 1; i <= pageCount; i++) {
+                            doc.setPage(i);
+                            doc.setFontSize(8);
+                            doc.setTextColor('#888888');
+                            const footerText = `Página ${i} de ${pageCount}`;
+                            doc.text(footerText, doc.internal.pageSize.getWidth() / 2, pageHeight - 20, { align: 'center' });
+                        }
+                    };
+
+                    // Função para verificar se precisa de uma nova página
+                    const checkPageBreak = (requiredHeight) => {
+                        if (yPosition + requiredHeight > pageHeight - 40) { // 40 de margem inferior
+                            doc.addPage();
+                            yPosition = topMargin;
+                            addPageHeaders(doc.internal.getNumberOfPages());
+                        }
+                    };
+
+                    // --- Início do Documento ---
+                    addPageHeaders(1);
+
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Campanha:`, leftMargin, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(campaignName, leftMargin + 65, yPosition);
+                    yPosition += 20;
+
+                    const date = new Date(homologationDate);
+                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+                    const formattedDate = adjustedDate.toLocaleDateString('pt-BR');
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`Data:`, leftMargin, yPosition);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(formattedDate, leftMargin + 35, yPosition);
+                    yPosition += 30; // Espaço maior para começar os itens
+
+                    // --- Loop pelos Itens (com melhoria de categoria) ---
+                    let currentCategory = "";
+                    const items = document.querySelectorAll('.checklist-item');
+
+                    items.forEach((item, index) => {
+                        const category = item.dataset.category;
+                        const description = item.querySelector('.item-description').textContent;
+                        const statusInput = item.querySelector(`input[name="status-${index}"]:checked`);
+                        const status = statusInput ? statusInput.value : 'Não preenchido';
+                        const observation = item.querySelector('textarea').value;
+
+                        // **MELHORIA: Adiciona o cabeçalho da categoria no PDF**
+                        if (category !== currentCategory) {
+                            checkPageBreak(30); // Espaço para o cabeçalho da categoria
+                            yPosition += 15;
+                            doc.setFontSize(14);
+                            doc.setFont('helvetica', 'bold');
+                            doc.setTextColor('#005f73'); // Azul escuro
+                            doc.text(category, leftMargin, yPosition);
+                            doc.setLineWidth(0.5);
+                            doc.line(leftMargin, yPosition + 4, contentWidth + leftMargin, yPosition + 4);
+                            yPosition += 25;
+                            currentCategory = category;
+                        }
+
+                        // --- 1. Adiciona o Item (Descrição) ---
+                        doc.setFontSize(10); // Definir a fonte para o cálculo
+                        doc.setFont('helvetica', 'bold');
+                        const descriptionLines = doc.splitTextToSize(description, contentWidth);
+                        const itemHeight = (descriptionLines.length * 12); // altura do texto
+
+                        checkPageBreak(itemHeight + 15); // Verificar se cabe (altura + margem inicial)
+
+                        // Definir a fonte DE NOVO (caso checkPageBreak tenha mudado)
+                        doc.setFontSize(10);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor('#000000');
+                        doc.text(description, leftMargin, yPosition, { maxWidth: contentWidth });
+
+                        yPosition += itemHeight; // Avança o Y para a base da descrição
+
+
+                        // --- 2. Adiciona o Status (A PARTE QUE FALTAVA) ---
+                        const statusHeight = 14; // Altura estimada da linha do status
+                        checkPageBreak(statusHeight + 5); // Verificar se cabe (altura + margem)
+
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+
+                        let statusColor = '#333333';
+                        if (status === 'Ok') statusColor = '#2a9d8f';
+                        if (status === 'Pendente') statusColor = '#f77f00';
+                        if (status === 'Não Aplicável') statusColor = '#6c757d';
+
+                        doc.setTextColor(statusColor);
+                        // Desenha o status com recuo, 12pt abaixo da descrição
+                        doc.text(`Status: ${status}`, leftMargin + 5, yPosition + 12);
+                        doc.setTextColor('#000000');
+                        yPosition += statusHeight; // Avança o Y para a base do status
+
+
+                        // --- 3. Adiciona a Observação (se houver) ---
+                        if (observation.trim()) {
+                            doc.setFontSize(9); // Definir fonte para cálculo
+                            doc.setFont('helvetica', 'italic');
+
+                            const obsText = `Observação: ${observation}`;
+                            const obsContentWidth = contentWidth - 5; // Largura da observação
+                            const obsLines = doc.splitTextToSize(obsText, obsContentWidth);
+                            const obsHeight = (obsLines.length * 12); // altura
+
+                            checkPageBreak(obsHeight + 5); // Verificar se cabe (altura + margem)
+
+                            // Definir a fonte DE NOVO (caso checkPageBreak tenha mudado)
+                            doc.setFontSize(9);
+                            doc.setFont('helvetica', 'italic');
+                            doc.setTextColor('#333333');
+                            // Desenha a observação 12pt abaixo do status
+                            doc.text(obsText, leftMargin + 5, yPosition + 12, { maxWidth: obsContentWidth });
+
+                            yPosition += obsHeight; // Avança o Y com base na altura da observação
+                            doc.setFont('helvetica', 'normal');
+                        }
+
+                        yPosition += 12; // Espaço final entre os itens
+                    });
+
+                    // --- Finaliza o Documento ---
+                    addPageFooters();
+                    doc.save(`Relatorio_Homologacao_${campaignName.replace(/\s+/g, '_')}_${homologationDate}.pdf`);
+
+                    loader.style.display = 'none'; // Esconde o loader
+                }, 500); // Fim do setTimeout
+            });
+        });
+    </script>
+</body>
+
+</html>
